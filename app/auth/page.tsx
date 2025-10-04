@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import type React from "react";
+import axios from "axios";
 
 import { useEffect, useState } from "react";
+import { BASE_URL } from "@/constant/endpoint";
 
 export default function AuthPage() {
   const [mounted, setMounted] = useState(false);
@@ -32,12 +34,50 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (isLogin) {
+      axios
+        .post(`${BASE_URL}/auth/login`, {
+          email: formData.email,
+          password: formData.password,
+        })
+        .then((response) => {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("userId", response.data.userId);
+          console.log(response.data);
+          router.push("/dashboard/" + response.data.userId);
+        })
+        .catch((error) => {
+          console.error("There was an error!", error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      if (formData.password !== formData.confirmPassword) {
+        alert("Passwords do not match!");
+        setIsLoading(false);
+        return;
+      }
 
-    setIsLoading(false);
-    console.log(isLogin ? "Login" : "Sign up", formData);
-    router.push("/dashboard/" + 1234567890);
+      axios
+        .post(`${BASE_URL}/auth/register`, {
+          fullname: formData.name,
+          email: formData.email,
+          password: formData.password,
+        })
+        .then((response) => {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("userId", response.data.userId);
+          console.log(response.data);
+          router.push("/dashboard/" + response.data.userId);
+        })
+        .catch((error) => {
+          console.error("There was an error!", error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
   };
 
   return (
@@ -198,7 +238,7 @@ export default function AuthPage() {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/30 rounded-2xl focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-transparent transition-all duration-300 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white/50 text-black backdrop-blur-sm border border-white/30 rounded-2xl focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-transparent transition-all duration-300 placeholder-gray-400"
                     placeholder="Confirm your password"
                     required={!isLogin}
                   />

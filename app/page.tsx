@@ -71,7 +71,7 @@ export default function LumeAILanding() {
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-12">
         {/* Navigation */}
-        <div className="absolute top-8 right-8 z-20 animate-fade-in-up">
+        <div className="absolute top-8 right-8 z-20 animate-fade-in-up hidden lg:flex">
           <div className="flex items-center space-x-4">
             <a
               href="/auth"
@@ -110,6 +110,23 @@ export default function LumeAILanding() {
             Experience the future of document interaction with our elegant
             voice-powered device
           </p>
+
+          <div className="flex items-center justify-center mt-4 animate-fade-in-up lg:hidden">
+            <div className="flex items-center space-x-4">
+              <a
+                href="/auth"
+                className="text-gray-600 hover:text-gray-800 font-medium transition-colors duration-300"
+              >
+                Sign In
+              </a>
+              <a
+                href="/auth"
+                className="bg-gradient-to-r from-pink-400 to-violet-400 text-white px-6 py-2 rounded-full font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+              >
+                Get Started
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Floating Feature Cards */}

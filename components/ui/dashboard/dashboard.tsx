@@ -55,7 +55,7 @@ export default function Dashboard() {
       const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
       const buckedId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
       const response = await fetch(
-        `https://cloud.appwrite.io/v1/storage/buckets/${buckedId}/files/${pdf?.appwriteId}/view?project=${projectId}&mode=admin`
+        `${process.env.NEXT_PUBLIC_END_POINT}/storage/buckets/${buckedId}/files/${pdf?.appwriteId}/view?project=${projectId}&mode=admin`
       );
       const fileData = await response.blob();
 

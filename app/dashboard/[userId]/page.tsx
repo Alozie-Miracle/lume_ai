@@ -1,7 +1,11 @@
-import Dashboard from "@/components/ui/dashboard/dashboard";
+import dynamic from "next/dynamic";
 import React from "react";
 
-const page = () => {
+const Dashboard = dynamic(() => import("@/components/ui/dashboard/dashboard"), {
+  ssr: false, // prevent server-side rendering
+});
+
+const Page = () => {
   return (
     <div>
       <Dashboard />
@@ -9,4 +13,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

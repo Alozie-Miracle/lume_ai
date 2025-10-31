@@ -2,7 +2,7 @@
 
 import type React from "react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BASE_URL } from "@/constant/endpoint";
 
 import { pdfjs, Document, Page } from "react-pdf";
@@ -25,6 +25,7 @@ import { Loader2 } from "lucide-react";
 export default function Dashboard() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [pdf, setPdf] = useState<Pdf>();
 
@@ -33,12 +34,31 @@ export default function Dashboard() {
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
   const [user, setuser] = useState<User>();
   const [userId, setuserId] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("userId") || "";
     }
   });
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+        } catch {}
+        audioRef.current = null;
+      }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const getUser = () => {
@@ -55,7 +75,7 @@ export default function Dashboard() {
       const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
       const buckedId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_END_POINT}/storage/buckets/${buckedId}/files/${pdf?.appwriteId}/view?project=${projectId}&mode=admin`
+        `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${buckedId}/files/${pdf?.appwriteId}/view?project=${projectId}&mode=admin`
       );
       const fileData = await response.blob();
 
@@ -148,6 +168,107 @@ export default function Dashboard() {
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }): void => {
     setNumPage(numPages);
     // console.log(numPages);
+  };
+
+  const getAudio = async () => {
+    if (!pdf?.appwriteId) return;
+    setLoading(true);
+
+    const url = `${BASE_URL}/dashboard/get-pdf-audio/${pdf.appwriteId}`;
+
+    // Try to fetch JSON/url first (backend returns a URL or { playbackUrl })
+    try {
+      const res = await axios.get(url, { responseType: "json" });
+      console.log(res.data);
+
+      const data = res.data.audioUrl;
+      if (!data) throw new Error("No audioUrl returned from backend");
+
+      const match = data.match(/\/files\/([^\/]+)\/view/);
+      const fileId = match?.[1];
+      if (!fileId) throw new Error("Could not extract fileId from audioUrl");
+
+      const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+      const buckedId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
+
+      if (!endpoint || !projectId || !buckedId)
+        throw new Error("Missing Appwrite public env vars");
+
+      const viewUrl = `${endpoint}/storage/buckets/${buckedId}/files/${fileId}/view?project=${projectId}&mode=admin`;
+
+      const blobRes = await axios.get(viewUrl, { responseType: "blob" });
+      const blob = new Blob([blobRes.data], {
+        type: blobRes.data.type || "audio/mpeg",
+      });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // store for pause/resume and cleanup
+      blobUrlRef.current = blobUrl;
+
+      const audio = new Audio(blobUrl);
+      audioRef.current = audio;
+
+      audio.addEventListener("ended", () => {
+        setIsPlaying(false);
+        // revoke when finished
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = null;
+        }
+        audioRef.current = null;
+      });
+
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch (playErr) {
+        console.error("audio.play() failed:", playErr);
+      }
+    } catch (err) {
+      console.error("getAudio error:", err);
+      // fallback: if audioUrl is public and works, try to play it directly
+      try {
+        const maybeUrlRes = await axios.get(url, { responseType: "json" });
+        const direct = maybeUrlRes.data?.audioUrl ?? maybeUrlRes.data;
+        if (direct) {
+          const audio = new Audio(direct);
+          audioRef.current = audio;
+          audio.addEventListener("ended", () => setIsPlaying(false));
+          await audio
+            .play()
+            .then(() => setIsPlaying(true))
+            .catch((e) => {
+              console.error("direct play failed:", e);
+            });
+        }
+      } catch (_) {
+        // ignore
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NEW: pause/resume toggle
+  const togglePause = async () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (!a.paused) {
+      try {
+        a.pause();
+        setIsPlaying(false);
+      } catch (e) {
+        console.error("Failed to pause audio", e);
+      }
+    } else {
+      try {
+        await a.play();
+        setIsPlaying(true);
+      } catch (e) {
+        console.error("Failed to resume audio", e);
+      }
+    }
   };
 
   return (
@@ -327,11 +448,23 @@ export default function Dashboard() {
                 </h2>
                 {file && (
                   <div className="flex items-center space-x-2">
-                    <button className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-                      Download
+                    <button
+                      disabled={loading}
+                      onClick={() => getAudio()}
+                      className="px-3 py-1 text-sm text-white bg-violet-600 rounded-md hover:bg-violet-700 transition-colors"
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin h-5 w-5" />
+                      ) : (
+                        "🔊 Listen"
+                      )}
                     </button>
-                    <button className="px-3 py-1 text-sm text-white bg-violet-600 rounded-md hover:bg-violet-700 transition-colors">
-                      🎧 Listen
+                    <button
+                      onClick={togglePause}
+                      disabled={!audioRef.current}
+                      className="px-3 py-1 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      {isPlaying ? "⏸ Pause" : "▶ Resume"}
                     </button>
                   </div>
                 )}

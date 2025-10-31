@@ -1,17 +1,12 @@
-import dynamic from "next/dynamic";
+import Index from "@/components/ui/dashboard";
 import React from "react";
-
-const Dashboard = dynamic(() => import("@/components/ui/dashboard/dashboard"), {
-  ssr: false, // prevent server-side rendering
-});
 
 const Page = () => {
   return (
     <div>
-      <Dashboard />
+      <Index />
     </div>
   );
 };
 
 export default Page;
-// export const BASE_URL = "http://localhost:5000/api/v1";

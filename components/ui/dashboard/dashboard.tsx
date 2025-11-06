@@ -20,7 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ID, storage } from "@/lib/appwrite";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronDownIcon, Loader2 } from "lucide-react";
+import QuestionAndAnswer from "./q&a";
 
 export default function Dashboard() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -31,12 +32,14 @@ export default function Dashboard() {
 
   const [file, setFile] = useState<Blob | null>(null);
   const [numPage, setNumPage] = useState<number>(1);
-  const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [expandedChatId, setExpandedChatId] = useState<string | null>(null);
 
   const [user, setuser] = useState<User>();
   const [userId, setuserId] = useState(() => {
@@ -83,6 +86,23 @@ export default function Dashboard() {
     };
 
     if (pdf) fetchFile();
+  }, [pdf]);
+
+  useEffect(() => {
+    const getAudiochats = async () => {
+      if (!pdf?.appwriteId) return;
+      try {
+        const response = await axios.get(
+          `${BASE_URL}/dashboard/audio-question/${pdf._id}`
+        );
+        console.log("Audio chats:", response.data);
+        setChats(response.data);
+      } catch (error) {
+        console.error("Error fetching audio chats:", error);
+      }
+    };
+
+    if (pdf) getAudiochats();
   }, [pdf]);
 
   const handleFileUpload = async (file: File) => {
@@ -397,29 +417,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Voice Commands */}
-              {pdf && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">
-                    Voice Commands
-                  </h3>
-                  <div className="space-y-2">
-                    {[
-                      "Read this document",
-                      "Summarize the content",
-                      "What are the key points?",
-                      "Explain chapter 1",
-                    ].map((command, index) => (
-                      <button
-                        key={index}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
-                      >
-                        "{command}"
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {pdf && <QuestionAndAnswer pdf={pdf} userId={userId} />}
             </div>
 
             <div className="flex flex-col gap-2 mt-8">
@@ -504,27 +502,49 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        {/* AI Response Section
-        {uploadedPdf && (
-          <div className="mt-8">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                AI Response
-              </h2>
-              <div className="bg-gray-50 rounded-lg p-4 min-h-[120px]">
-                <div className="flex items-center space-x-2 text-gray-500">
-                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse" />
-                  <span className="text-sm">
-                    Ready to answer your questions about "{uploadedPdf.name}"
-                  </span>
+      </div>
+
+      <div className="mt-6 space-y-4 px-2 lg:p-5 py-5 max-w-5xl mx-auto">
+        {chats.map((chat) => (
+          <div key={chat._id} className="border rounded-lg p-4 shadow-sm">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+              Chats with Lume
+            </h4>
+
+            {chat.messages.map((msg) => (
+              <div key={msg._id} className="mb-4">
+                <div className="border rounded-md p-2 bg-gray-100">
+                  <div className="flex justify-between px-5 items-center border-b pb-2 mb-2">
+                    <p>Messages</p>
+                    {expandedChatId === msg._id ? (
+                      <ChevronDownIcon
+                        className="w-4 h-4 cursor-pointer transform rotate-180"
+                        onClick={() => setExpandedChatId(null)}
+                      />
+                    ) : (
+                      <ChevronDownIcon
+                        className="w-4 h-4 cursor-pointer"
+                        onClick={() => setExpandedChatId(msg._id)}
+                      />
+                    )}
+                  </div>
+
+                  {expandedChatId === msg._id && (
+                    <p className="text-gray-800 text-xs px-5">{msg.message}</p>
+                  )}
                 </div>
-                <p className="text-sm text-gray-400 mt-2">
-                  Use voice commands or ask questions about your document
-                </p>
+
+                {msg.audioAppwriteId && (
+                  <audio
+                    controls
+                    src={`https://cloud.appwrite.io/v1/storage/buckets/${process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID}/files/${msg.audioAppwriteId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`}
+                    className="mt-2 w-full"
+                  />
+                )}
               </div>
-            </div>
+            ))}
           </div>
-        )} */}
+        ))}
       </div>
     </div>
   );

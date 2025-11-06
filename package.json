@@ -21,6 +21,7 @@
     "pdfjs-dist": "^5.4.149",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-media-recorder": "^1.7.2",
     "react-pdf": "^10.1.0",
     "tailwind-merge": "^3.3.1"
   },

@@ -18,3 +18,22 @@ interface Pdf {
   createdAt: string;
   updatedAt: string;
 }
+
+type Message = {
+  _id: string;
+  userId: string;
+  pdfId: string;
+  chatId?: string;
+  message: string;
+  audioAppwriteId?: string;
+  createdAt: string;
+};
+
+type Chat = {
+  _id: string;
+  userId: string;
+  pdfId: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+};
